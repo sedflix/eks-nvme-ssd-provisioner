@@ -1,8 +1,7 @@
 #!/bin/bash
 
-set -o errexit
-set -o nounset
-set -o pipefail
+sudo -s
+yum install -y nvme-cli
 
 SSD_NVME_DEVICE_LIST=($(nvme list | grep "Amazon EC2 NVMe Instance Storage" | cut -d " " -f 1 || true))
 SSD_NVME_DEVICE_COUNT=${#SSD_NVME_DEVICE_LIST[@]}
@@ -12,15 +11,7 @@ FILESYSTEM_BLOCK_SIZE=${FILESYSTEM_BLOCK_SIZE:-4096}  # Bytes
 STRIDE=$(expr $RAID_CHUNK_SIZE \* 1024 / $FILESYSTEM_BLOCK_SIZE || true)
 STRIPE_WIDTH=$(expr $SSD_NVME_DEVICE_COUNT \* $STRIDE || true)
 
-
-# Checking if provisioning already happend
-if [[ "$(ls -A /pv-disks)" ]]
-then
-  echo 'Volumes already present in "/pv-disks"'
-  echo -e "\n$(ls -Al /pv-disks | tail -n +2)\n"
-  echo "I assume that provisioning already happend, doing nothing!"
-  sleep infinity
-fi
+rm -rf /pv-disks
 
 # Perform provisioning based on nvme device count
 case $SSD_NVME_DEVICE_COUNT in
@@ -52,5 +43,3 @@ mount -o defaults,noatime,discard,nobarrier --uuid $UUID /pv-disks/$UUID
 ln -s /pv-disks/$UUID /nvme/disk
 echo "Device $DEVICE has been mounted to /pv-disks/$UUID"
 echo "NVMe SSD provisioning is done and I will go to sleep now"
-
-sleep infinity
